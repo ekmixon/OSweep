@@ -35,13 +35,14 @@ Notes: None
 Debugger: open("/tmp/splunk_script.txt", "a").write("{}: <MSG>\n".format(<VAR>))
 """
 
+
 import os
 import sys
 import time
 import urllib
 
-app_home   = "{}/etc/apps/OSweep".format(os.environ['SPLUNK_HOME'])
-tp_modules = "{}/bin/_tp_modules".format(app_home)
+app_home = f"{os.environ['SPLUNK_HOME']}/etc/apps/OSweep"
+tp_modules = f"{app_home}/bin/_tp_modules"
 sys.path.insert(0, tp_modules)
 import tweepy
 import validators
@@ -63,7 +64,7 @@ def create_session():
     except:
         sc  = session.last_response.status_code
         msg = session.last_response.content
-        return {"error": "HTTP Status Code {}: {}".format(sc, msg)}
+        return {"error": f"HTTP Status Code {sc}: {msg}"}
     return session
 
 def process_iocs(results):
@@ -74,7 +75,10 @@ def process_iocs(results):
         provided_iocs = sys.argv[1:]
 
     if len(provided_iocs) > 180:
-        return {"error": "Search term limit: 180\nTotal Search Terms Provided: {}".format(len(provided_iocs))}
+        return {
+            "error": f"Search term limit: 180\nTotal Search Terms Provided: {len(provided_iocs)}"
+        }
+
 
     session      = create_session()
     splunk_table = []
@@ -107,7 +111,7 @@ def process_iocs(results):
         else:
             splunk_table.append({"invalid": provided_ioc})
             continue
-        
+
         for ioc_dict in ioc_dicts:
             ioc_dict = commons.lower_keys(ioc_dict)
             splunk_table.append(ioc_dict)
@@ -134,7 +138,10 @@ def query_twitter(session, provided_ioc):
     ioc_dicts = []
 
     if provided_ioc.startswith("@"):
-        ioc_dicts.append({"invalid": "{} <-- Monitoring users is prohibited!".format(provided_ioc)})
+        ioc_dicts.append(
+            {"invalid": f"{provided_ioc} <-- Monitoring users is prohibited!"}
+        )
+
         return ioc_dicts
 
     encoded_ioc   = urllib.quote_plus(provided_ioc)
@@ -146,30 +153,44 @@ def query_twitter(session, provided_ioc):
     for tweet in search_tweets:
         if tweet._json["user"]["name"] == provided_ioc.replace("#", "") or \
            tweet._json["user"]["screen_name"] == provided_ioc.replace("#", ""):
-            ioc_dicts.append({"invalid": "{} <-- Monitoring users is prohibited!".format(provided_ioc)})
+            ioc_dicts.append(
+                {
+                    "invalid": f"{provided_ioc} <-- Monitoring users is prohibited!"
+                }
+            )
+
             return ioc_dicts
 
-        if "retweeted_status" in tweet._json.keys():
-            if tweet._json["retweeted_status"]["user"]["name"] == provided_ioc.replace("#", "") or \
-               tweet._json["retweeted_status"]["user"]["screen_name"] == provided_ioc.replace("#", ""):
-                ioc_dicts.append({"invalid": "{} <-- Monitoring users is prohibited!".format(provided_ioc)})
-                return ioc_dicts
+        if "retweeted_status" in tweet._json.keys() and (
+            tweet._json["retweeted_status"]["user"]["name"]
+            == provided_ioc.replace("#", "")
+            or tweet._json["retweeted_status"]["user"]["screen_name"]
+            == provided_ioc.replace("#", "")
+        ):
+            ioc_dicts.append(
+                {
+                    "invalid": f"{provided_ioc} <-- Monitoring users is prohibited!"
+                }
+            )
 
-        urls = []
-        for x in tweet._json["entities"]["urls"]:
-            if not x["expanded_url"].startswith("https://twitter.com/i/web/status/"):
-                urls.append(x["expanded_url"])
+            return ioc_dicts
 
-        hashtags = []
-        for x in tweet._json["entities"]["hashtags"]:
-            hashtags.append("#{}".format(x["text"]))
+        urls = [
+            x["expanded_url"]
+            for x in tweet._json["entities"]["urls"]
+            if not x["expanded_url"].startswith(
+                "https://twitter.com/i/web/status/"
+            )
+        ]
 
-        ioc_dict = {}
-        ioc_dict["search_term"] = provided_ioc
-        ioc_dict["url"]         = "\n".join(urls)
-        ioc_dict["hashtags"]    = "\n".join(hashtags)
-        ioc_dict["timestamp"]   = tweet._json["created_at"]
-        ioc_dict["tweet"]       = tweet._json["text"]
+        hashtags = [f'#{x["text"]}' for x in tweet._json["entities"]["hashtags"]]
+        ioc_dict = {
+            "search_term": provided_ioc,
+            "url": "\n".join(urls),
+            "hashtags": "\n".join(hashtags),
+            "timestamp": tweet._json["created_at"],
+            "tweet": tweet._json["text"],
+        }
 
         if "retweeted_status" in tweet._json.keys():
             ioc_dict["timestamp"] = tweet._json["retweeted_status"]["created_at"]

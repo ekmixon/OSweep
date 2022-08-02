@@ -28,13 +28,14 @@ Notes: None
 Debugger: open("/tmp/splunk_script.txt", "a").write("{}: <MSG>\n".format(<VAR>))
 """
 
+
 from datetime import datetime
 from datetime import timedelta
 import os
 import sys
 
-app_home   = "{}/etc/apps/OSweep".format(os.environ['SPLUNK_HOME'])
-tp_modules = "{}/bin/_tp_modules".format(app_home)
+app_home = f"{os.environ['SPLUNK_HOME']}/etc/apps/OSweep"
+tp_modules = f"{app_home}/bin/_tp_modules"
 sys.path.insert(0, tp_modules)
 import validators
 
@@ -48,7 +49,7 @@ def process_iocs(results):
         provided_iocs = [y for x in results for y in x.values()]
     elif sys.argv[1] in usfs.queries.keys():
         if len(sys.argv[1:]) < 3:
-            return [{"error": "3 positional args needed. {} given.".format(str(len(sys.argv[1:])))}]
+            return [{"error": f"3 positional args needed. {len(sys.argv[1:])} given."}]
         provided_iocs = sys.argv[3:]
     else:
         provided_iocs = sys.argv[1:]
@@ -121,20 +122,20 @@ def query_urlscan_file(session, provided_ioc):
             for payload in result["files"]:
                 if result["page"]["url"].endswith(ext) or \
                    payload["mimeType"].startswith(usfs.extensions[ext]):
-                    ioc_dict = {}
-                    ioc_dict["analysis time"] = result["task"]["time"]
-                    ioc_dict["url"]           = result["page"]["url"]
-                    ioc_dict["domain"]        = result["page"]["domain"]
-                    ioc_dict["ip"]            = result["page"]["ip"]
-                    ioc_dict["country"]       = result["page"]["country"]
-                    ioc_dict["filename"]      = payload["filename"]
-                    ioc_dict["mimetype"]      = payload["mimeType"]
-                    ioc_dict["sha256"]        = payload["sha256"]
+                    ioc_dict = {
+                        "analysis time": result["task"]["time"],
+                        "url": result["page"]["url"],
+                        "domain": result["page"]["domain"],
+                        "ip": result["page"]["ip"],
+                        "country": result["page"]["country"],
+                        "filename": payload["filename"],
+                        "mimetype": payload["mimeType"],
+                        "sha256": payload["sha256"],
+                    }
+
                     ioc_dicts.append(ioc_dict)
-    
-    if len(ioc_dicts) == 0:
-        return [{"no data": "{}, {}, {}".format(qtype, delta, ext)}]
-    return ioc_dicts
+
+    return ioc_dicts or [{"no data": f"{qtype}, {delta}, {ext}"}]
 
 def query_urlscan(session, provided_ioc):
     """Return data from urlscan about the provided IOC."""
@@ -164,11 +165,7 @@ def rename_dicts(results, provided_ioc):
         files = result.get("files", "")
 
         if files == "":
-            download = {}
-            download["filename"] = ""
-            download["filesize"] = ""
-            download["mimetype"] = ""
-            download["sha256"]   = ""
+            download = {"filename": "", "filesize": "", "mimetype": "", "sha256": ""}
             ioc_dict = commons.merge_dict(page, download)
             ioc_dicts.append(ioc_dict)
         else:

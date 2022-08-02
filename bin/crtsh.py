@@ -29,12 +29,13 @@ Notes: Search for subdomains by passing "wildcard" as the first argument:
 Debugger: open("/tmp/splunk_script.txt", "a").write("{}: <MSG>\n".format(<VAR>))
 """
 
+
 import json
 import os
 import sys
 
-app_home   = "{}/etc/apps/OSweep".format(os.environ['SPLUNK_HOME'])
-tp_modules = "{}/bin/_tp_modules".format(app_home)
+app_home = f"{os.environ['SPLUNK_HOME']}/etc/apps/OSweep"
+tp_modules = f"{app_home}/bin/_tp_modules"
 sys.path.insert(0, tp_modules)
 import validators
 
@@ -45,12 +46,11 @@ def process_iocs(results):
     """Return data formatted for Splunk from crt.sh."""
     if results != None:
         provided_iocs = [y for x in results for y in x.values()]
-    elif sys.argv[1] != "subdomain" and sys.argv[1] != "wildcard":
+    elif sys.argv[1] not in ["subdomain", "wildcard"]:
         if len(sys.argv) > 1:
             provided_iocs = sys.argv[1:]
-    elif sys.argv[1] == "subdomain" or sys.argv[1] == "wildcard":
-        if len(sys.argv) > 2:
-            provided_iocs = sys.argv[2:]
+    elif len(sys.argv) > 2:
+        provided_iocs = sys.argv[2:]
 
     session      = commons.create_session()
     splunk_table = []
@@ -64,18 +64,16 @@ def process_iocs(results):
             splunk_table.append({"invalid": provided_ioc})
             continue
 
-        for crt_dict in crt_dicts:
-            splunk_table.append(crt_dict)
-
+        splunk_table.extend(iter(crt_dicts))
     session.close()
     return splunk_table
 
 def query_crtsh(provided_ioc, session):
     """Search crt.sh for the given domain."""
     if sys.argv[1] == "subdomain":
-        provided_ioc = "%25.{}".format(provided_ioc)
+        provided_ioc = f"%25.{provided_ioc}"
     elif sys.argv[1] == "wildcard":
-        provided_ioc = "%25{}".format(provided_ioc)
+        provided_ioc = f"%25{provided_ioc}"
 
     base_url  = "https://crt.sh/?q={}&output=json"
     url       = base_url.format(provided_ioc)

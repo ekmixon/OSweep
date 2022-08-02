@@ -29,12 +29,13 @@ Notes: Search for subdomains by passing "wildcard" as the first argument:
 Debugger: open("/tmp/splunk_script.txt", "a").write("{}: <MSG>\n".format(<VAR>))
 """
 
+
 import json
 import os
 import sys
 
-app_home   = "{}/etc/apps/OSweep".format(os.environ['SPLUNK_HOME'])
-tp_modules = "{}/bin/_tp_modules".format(app_home)
+app_home = f"{os.environ['SPLUNK_HOME']}/etc/apps/OSweep"
+tp_modules = f"{app_home}/bin/_tp_modules"
 sys.path.insert(0, tp_modules)
 import validators
 
@@ -43,7 +44,7 @@ import commons
 
 def process_iocs(results):
     """Return data formatted for Splunk from psbdmp."""
-    if sys.argv[1] == "search" or sys.argv[1] == "dump":
+    if sys.argv[1] in ["search", "dump"]:
         endpoint      = sys.argv[1]
         provided_iocs = sys.argv[2:]
 
@@ -61,9 +62,7 @@ def process_iocs(results):
             splunk_table.append({"invalid": provided_ioc})
             continue
 
-        for psbdmp_dict in psbdmp_dicts:
-            splunk_table.append(psbdmp_dict)
-
+        splunk_table.extend(iter(psbdmp_dicts))
     session.close()
     return splunk_table
 

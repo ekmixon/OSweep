@@ -15,6 +15,7 @@ Notes: None
 Debugger: open("/tmp/splunk_script.txt", "a").write("{}: <MSG>\n".format(<VAR>))
 """
 
+
 import time
 from collections import OrderedDict
 import glob
@@ -23,8 +24,8 @@ import shutil
 import sys
 import zipfile
 
-app_home   = "{}/etc/apps/OSweep".format(os.environ["SPLUNK_HOME"])
-tp_modules = "{}/bin/_tp_modules".format(app_home)
+app_home = f'{os.environ["SPLUNK_HOME"]}/etc/apps/OSweep'
+tp_modules = f"{app_home}/bin/_tp_modules"
 sys.path.insert(0, tp_modules)
 import validators
 
@@ -40,7 +41,7 @@ def get_project():
     project = "https://github.com/neonprimetime/PhishingKitTracker/archive/master.zip"
     resp    = session.get(project, timeout=180)
 
-    if not (resp.status_code == 200 and resp.content != ""):
+    if resp.status_code != 200 or resp.content == "":
         return
 
     with open("/tmp/master.zip", "wb") as repo:
@@ -51,12 +52,12 @@ def get_project():
     repo_zip.close()
 
     # Remove current files
-    for csv in glob.glob("/{}/etc/apps/OSweep/lookups/2*_PhishingKitTracker.csv".format(os.environ["SPLUNK_HOME"])):
+    for csv in glob.glob(f'/{os.environ["SPLUNK_HOME"]}/etc/apps/OSweep/lookups/2*_PhishingKitTracker.csv'):
         os.remove(csv)
 
     # Add new files
     for csv in glob.glob("/tmp/PhishingKitTracker-master/2*_PhishingKitTracker.csv"):
-        shutil.move(csv, "/{}/etc/apps/OSweep/lookups".format(os.environ["SPLUNK_HOME"]))
+        shutil.move(csv, f'/{os.environ["SPLUNK_HOME"]}/etc/apps/OSweep/lookups')
 
     os.remove("/tmp/master.zip")
     shutil.rmtree("/tmp/PhishingKitTracker-master")
@@ -67,7 +68,7 @@ def get_feed():
     session   = commons.create_session()
     data_feed = get_file(session)
 
-    if data_feed == None:
+    if data_feed is None:
         return
     return data_feed
 
@@ -81,23 +82,23 @@ def get_file(session):
 
 def write_file(data_feed, file_path):
     """Write data to a file."""
-    if data_feed == None:
+    if data_feed is None:
         return
 
     with open(file_path, "w") as open_file:
         header = data_feed[0]
 
-        open_file.write("{}\n".format(header))
+        open_file.write(f"{header}\n")
 
         for data in data_feed[1:]:
-            open_file.write("{}\n".format(data.encode("UTF-8")))
+            open_file.write(f'{data.encode("UTF-8")}\n')
     return
 
 if __name__ == "__main__":
     if sys.argv[1].lower() == "feed":
         data_feed    = get_feed()
-        lookup_path  = "{}/lookups".format(app_home)
-        file_path    = "{}/{}_PhishingKitTracker.csv".format(lookup_path, date)
+        lookup_path = f"{app_home}/lookups"
+        file_path = f"{lookup_path}/{date}_PhishingKitTracker.csv"
 
         write_file(data_feed, file_path)
     elif sys.argv[1].lower() == "git":

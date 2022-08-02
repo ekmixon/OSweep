@@ -27,13 +27,14 @@ Notes: None
 Debugger: open("/tmp/splunk_script.txt", "a").write("{}: <MSG>\n".format(<VAR>))
 """
 
+
 from collections import OrderedDict
 import os
 import re
 import sys
 
-app_home   = "{}/etc/apps/OSweep".format(os.environ['SPLUNK_HOME'])
-tp_modules = "{}/bin/_tp_modules".format(app_home)
+app_home = f"{os.environ['SPLUNK_HOME']}/etc/apps/OSweep"
+tp_modules = f"{app_home}/bin/_tp_modules"
 sys.path.insert(0, tp_modules)
 from bs4 import BeautifulSoup
 import validators
@@ -51,36 +52,32 @@ def get_feed():
     if resp.status_code == 200 and resp.text != "":
         data      = resp.text.splitlines()
         header    = "url"
-        data_feed = []
-
-        for line in data:
-            data_feed.append({"url": line})
-        return data_feed
+        return [{"url": line} for line in data]
     return
 
 def write_file(data_feed, file_path):
     """Write data to a file."""
-    if data_feed == None:
+    if data_feed is None:
         return
 
     with open(file_path, "w") as open_file:
         keys   = data_feed[0].keys()
         header = ",".join(keys)
 
-        open_file.write("{}\n".format(header))
+        open_file.write(f"{header}\n")
 
         for data in data_feed:
             data_string = ",".join(data.values())
-            open_file.write("{}\n".format(data_string.encode("UTF-8")))
+            open_file.write(f'{data_string.encode("UTF-8")}\n')
     return
 
 def process_iocs(results):
     """Return data formatted for Splunk from CyberCrime Tracker."""
-    if results != None:
-        provided_iocs = [y for x in results for y in x.values()]
-    else:
+    if results is None:
         provided_iocs = sys.argv[1:]
 
+    else:
+        provided_iocs = [y for x in results for y in x.values()]
     session      = commons.create_session()
     splunk_table = []
 
@@ -93,17 +90,13 @@ def process_iocs(results):
             splunk_table.append({"invalid": provided_ioc})
             continue
 
-        for cct_dict in cct_dicts:
-            splunk_table.append(cct_dict)
-
+        splunk_table.extend(iter(cct_dicts))
     session.close()
     return splunk_table
 
 def query_cct(provided_ioc, session):
     """Search cybercrime-tracker.net for specific information about panels."""
     api       = "http://cybercrime-tracker.net/index.php?search={}&s=0&m=10000"
-    vt_latest = "https://www.virustotal.com/latest-scan/http://{}"
-    vt_ip     = "https://www.virustotal.com/en/ip-address/{}/information/"
     base_url  = api.format(provided_ioc)
     resp      = session.get(base_url, timeout=180)
     cct_dicts = []
@@ -117,6 +110,8 @@ def query_cct(provided_ioc, session):
             cct_dicts.append({"no data": provided_ioc})
             return cct_dicts
 
+        vt_latest = "https://www.virustotal.com/latest-scan/http://{}"
+        vt_ip     = "https://www.virustotal.com/en/ip-address/{}/information/"
         for row in rows:
             cells = row.find_all("td", limit=5)
 
@@ -142,8 +137,8 @@ def query_cct(provided_ioc, session):
 if __name__ == "__main__":
     if sys.argv[1].lower() == "feed":
         data_feed   = get_feed()
-        lookup_path = "{}/lookups".format(app_home)
-        file_path   = "{}/cybercrime_tracker_feed.csv".format(lookup_path)
+        lookup_path = f"{app_home}/lookups"
+        file_path = f"{lookup_path}/cybercrime_tracker_feed.csv"
         write_file(data_feed, file_path)
         exit(0)
 

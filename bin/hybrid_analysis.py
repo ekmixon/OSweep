@@ -13,12 +13,13 @@ Results Limit: None
 Debugger: open("/tmp/splunk_script.txt", "a").write("{}: <MSG>\n".format(<VAR>))
 """
 
+
 import os
 import re
 import sys
 
-app_home   = "{}/etc/apps/OSweep".format(os.environ['SPLUNK_HOME'])
-tp_modules = "{}/bin/_tp_modules".format(app_home)
+app_home = f"{os.environ['SPLUNK_HOME']}/etc/apps/OSweep"
+tp_modules = f"{app_home}/bin/_tp_modules"
 sys.path.insert(0, tp_modules)
 import validators
 
@@ -75,9 +76,7 @@ def process_iocs(results):
 
         ioc_dicts = query_hybridanalysis(endpoint, param, provided_ioc, api_domain, api_key, session)
 
-        for ioc_dict in ioc_dicts:
-            splunk_table.append(ioc_dict)
-
+        splunk_table.extend(iter(ioc_dicts))
     session.close()
     return splunk_table
 
@@ -106,8 +105,7 @@ def query_hybridanalysis(endpoint, param, provided_ioc, api_domain, api_key, ses
             return ioc_dicts
 
     for result in results:
-        ioc_dict = {}
-        ioc_dict["type"] = result.get("type", None)
+        ioc_dict = {"type": result.get("type", None)}
         ioc_dict["target_url"] = result.get("target_url", None)
         ioc_dict["submit_name"] = result.get("submit_name", None)
         ioc_dict["md5"] = result.get("md5", None)

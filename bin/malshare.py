@@ -24,13 +24,14 @@ Results Limit: None
 Debugger: open("/tmp/splunk_script.txt", "a").write("{}: <MSG>\n".format(<VAR>))
 """
 
+
 import json
 import os
 import re
 import sys
 
-app_home   = "{}/etc/apps/OSweep".format(os.environ['SPLUNK_HOME'])
-tp_modules = "{}/bin/_tp_modules".format(app_home)
+app_home = f"{os.environ['SPLUNK_HOME']}/etc/apps/OSweep"
+tp_modules = f"{app_home}/bin/_tp_modules"
 sys.path.insert(0, tp_modules)
 import validators
 
@@ -41,11 +42,11 @@ api = "https://malshare.com/api.php?api_key={}&action=search&query={}".lower()
 
 def process_iocs(results):
     """Return data formatted for Splunk from Malshare."""
-    if results != None:
-        provided_iocs = [y for x in results for y in x.values()]
-    else:
+    if results is None:
         provided_iocs = sys.argv[1:]
 
+    else:
+        provided_iocs = [y for x in results for y in x.values()]
     session = commons.create_session()
     api_key = commons.get_apikey("malshare")
     splunk_table = []
@@ -54,18 +55,18 @@ def process_iocs(results):
         provided_ioc = commons.deobfuscate_string(provided_ioc)
         provided_ioc = provided_ioc.lower()
 
-        if validators.ipv4(provided_ioc) or validators.domain(provided_ioc) or \
-            re.match("^[a-f\d]{32}$", provided_ioc) or re.match("^[a-f\d]{64}$", provided_ioc):
-            pass
-        else:
+        if (
+            not validators.ipv4(provided_ioc)
+            and not validators.domain(provided_ioc)
+            and not re.match("^[a-f\d]{32}$", provided_ioc)
+            and not re.match("^[a-f\d]{64}$", provided_ioc)
+        ):
             splunk_table.append({"invalid": provided_ioc})
             continue
 
         ioc_dicts = query_malshare(provided_ioc, api_key, session)
 
-        for ioc_dict in ioc_dicts:
-            splunk_table.append(ioc_dict)
-
+        splunk_table.extend(iter(ioc_dicts))
     session.close()
     return splunk_table
 
@@ -84,8 +85,7 @@ def query_malshare(provided_ioc, api_key, session):
         return ioc_dicts
 
     for data in content:
-        ioc_dict = {}
-        ioc_dict["md5"]    = data.get("md5", None)
+        ioc_dict = {"md5": data.get("md5", None)}
         ioc_dict["sha256"] = data.get("sha256", None)
         ioc_dict["type"]   = data.get("type", None)
         ioc_dict["added"]  = data.get("added", None)

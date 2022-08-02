@@ -29,13 +29,14 @@ Notes: None
 Debugger: open("/tmp/splunk_script.txt", "a").write("{}: <MSG>\n".format(<VAR>))
 """
 
+
 import os
 import re
 import sys
 from time import sleep
 
-app_home   = "{}/etc/apps/OSweep".format(os.environ['SPLUNK_HOME'])
-tp_modules = "{}/bin/_tp_modules".format(app_home)
+app_home = f"{os.environ['SPLUNK_HOME']}/etc/apps/OSweep"
+tp_modules = f"{app_home}/bin/_tp_modules"
 sys.path.insert(0, tp_modules)
 import validators
 
@@ -46,11 +47,11 @@ api = "http://www.threatcrowd.org/searchApi/v2/{}/report/?{}={}"
 
 def process_iocs(results):
     """Return data formatted for Splunk from ThreatCrowd."""
-    if results != None:
-        provided_iocs = [y for x in results for y in x.values()]
-    else:
+    if results is None:
         provided_iocs = sys.argv[1:]
 
+    else:
+        provided_iocs = [y for x in results for y in x.values()]
     session = commons.create_session()
     splunk_table = []
 
@@ -72,9 +73,7 @@ def process_iocs(results):
 
         ioc_dicts = query_threatcrowd(provided_ioc, ioc_type, session)
 
-        for ioc_dict in ioc_dicts:
-            splunk_table.append(ioc_dict)
-
+        splunk_table.extend(iter(ioc_dicts))
         if len(provided_iocs) > 1:
             sleep(10)
 
@@ -93,7 +92,7 @@ def query_threatcrowd(provided_ioc, ioc_type, session):
     if resp.status_code == 200 and "permalink" in resp.json().keys() and \
        provided_ioc in resp.json()["permalink"]:
         for key in resp.json().keys():
-            if key == "votes" or key == "permalink" or key == "response_code":
+            if key in ["votes", "permalink", "response_code"]:
                 continue
             elif key in ("md5", "sha1"):
                 value = resp.json()[key]

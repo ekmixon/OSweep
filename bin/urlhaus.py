@@ -32,14 +32,15 @@ Notes: None
 Debugger: open("/tmp/splunk_script.txt", "a").write("{}: <MSG>\n".format(<VAR>))
 """
 
+
 from collections import OrderedDict
 import os
 import re
 import sys
 import time
 
-app_home   = "{}/etc/apps/OSweep".format(os.environ['SPLUNK_HOME'])
-tp_modules = "{}/bin/_tp_modules".format(app_home)
+app_home = f"{os.environ['SPLUNK_HOME']}/etc/apps/OSweep"
+tp_modules = f"{app_home}/bin/_tp_modules"
 sys.path.insert(0, tp_modules)
 import validators
 
@@ -50,7 +51,7 @@ def get_feed():
     """Return the latest report summaries from the feed."""
     api     = "https://urlhaus.abuse.ch/downloads"
     session = commons.create_session()
-    resp    = session.get("{}/csv/".format(api), timeout=180)
+    resp = session.get(f"{api}/csv/", timeout=180)
     session.close()
 
     if resp.status_code == 200 and resp.text != "":
@@ -73,18 +74,18 @@ def get_feed():
 
 def write_file(data_feed, file_path):
     """Write data to a file."""
-    if data_feed == None:
+    if data_feed is None:
         return
 
     with open(file_path, "w") as open_file:
         keys   = data_feed[0].keys()
         header = ",".join(keys)
 
-        open_file.write("{}\n".format(header))
+        open_file.write(f"{header}\n")
 
         for data in data_feed:
             data_string = ",".join(data.values())
-            open_file.write("{}\n".format(data_string.encode("UTF-8")))
+            open_file.write(f'{data_string.encode("UTF-8")}\n')
     return
 
 def process_iocs(results):
@@ -124,7 +125,7 @@ def process_iocs(results):
             continue
 
         ioc_dicts = query_urlhaus(session, provided_ioc, ioc_type)
-        
+
         for ioc_dict in ioc_dicts:
             ioc_dict = commons.lower_keys(ioc_dict)
             splunk_table.append(ioc_dict)
@@ -140,10 +141,10 @@ def query_urlhaus(session, provided_ioc, ioc_type):
 
     api  = "https://urlhaus-api.abuse.ch/v1/{}/"
     resp = session.post(api.format(uri_dir), timeout=180, data={ioc_type: provided_ioc})
-    ioc_dicts = []
-
     if resp.status_code == 200 and resp.text != "":
         resp_content = resp.json()
+
+        ioc_dicts = []
 
         if ioc_type == "host":
             if "urls" not in resp_content.keys() or len(resp_content["urls"]) == 0:
@@ -163,9 +164,7 @@ def query_urlhaus(session, provided_ioc, ioc_type):
                 }
 
                 if url["tags"] != None:
-                    ioc_dict.update({
-                        "tags (url)": ",".join(url.get("tags", None))
-                    })
+                    ioc_dict["tags (url)"] = ",".join(url.get("tags", None))
 
                 ioc_dicts.append(ioc_dict)
         elif ioc_type == "url":
@@ -191,15 +190,18 @@ def query_urlhaus(session, provided_ioc, ioc_type):
                 }
 
                 if resp_content["tags"] != None:
-                    ioc_dict.update({
-                        "tags (url)": ",".join(resp_content.get("tags", None))
-                    })
+                    ioc_dict["tags (url)"] = ",".join(resp_content.get("tags", None))
 
                 if payload["virustotal"] != None:
-                    ioc_dict.update({
-                        "vt_result (payload)": payload["virustotal"].get("result", None),
-                        "vt_link (payload)": payload["virustotal"].get("link", None)
-                    })
+                    ioc_dict |= {
+                        "vt_result (payload)": payload["virustotal"].get(
+                            "result", None
+                        ),
+                        "vt_link (payload)": payload["virustotal"].get(
+                            "link", None
+                        ),
+                    }
+
 
                 ioc_dicts.append(ioc_dict)
         elif ioc_type in ["md5_hash", "sha256_hash"]:
@@ -226,10 +228,15 @@ def query_urlhaus(session, provided_ioc, ioc_type):
                 }
 
                 if resp_content["virustotal"] != None:
-                    ioc_dict.update({
-                        "vt_result (payload)": resp_content["virustotal"].get("result", None),
-                        "vt_link (payload)": resp_content["virustotal"].get("link", None)
-                    })
+                    ioc_dict |= {
+                        "vt_result (payload)": resp_content["virustotal"].get(
+                            "result", None
+                        ),
+                        "vt_link (payload)": resp_content["virustotal"].get(
+                            "link", None
+                        ),
+                    }
+
                 ioc_dicts.append(ioc_dict)
         return ioc_dicts
     return [{"invalid": provided_ioc}]
@@ -237,8 +244,8 @@ def query_urlhaus(session, provided_ioc, ioc_type):
 if __name__ == "__main__":
     if sys.argv[1].lower() == "feed":
         data_feed   = get_feed()
-        lookup_path = "{}/lookups".format(app_home)
-        file_path   = "{}/urlhaus_url_feed.csv".format(lookup_path)
+        lookup_path = f"{app_home}/lookups"
+        file_path = f"{lookup_path}/urlhaus_url_feed.csv"
 
         write_file(data_feed, file_path)
         exit(0)

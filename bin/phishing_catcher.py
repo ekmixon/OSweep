@@ -33,12 +33,13 @@ Notes: None
 Debugger: open("/tmp/splunk_script.txt", "a").write("{}: <MSG>\n".format(<VAR>))
 """
 
+
 import os
 import re
 import sys
 
-app_home   = "{}/etc/apps/OSweep".format(os.environ['SPLUNK_HOME'])
-tp_modules = "{}/bin/_tp_modules".format(app_home)
+app_home = f"{os.environ['SPLUNK_HOME']}/etc/apps/OSweep"
+tp_modules = f"{app_home}/bin/_tp_modules"
 sys.path.insert(0, tp_modules)
 import entropy
 import pylev
@@ -56,7 +57,7 @@ def get_modules():
     confusables = request_module(session, "/phishing_catcher_confusables.py")
     session.close()
 
-    if suspicious == None or confusables == None:
+    if suspicious is None or confusables is None:
         return
     return suspicious, confusables
 
@@ -73,7 +74,7 @@ def write_file(file_contents, file_path):
     """Write data to a file."""
     with open(file_path, "w") as open_file:
         for content in file_contents:
-            open_file.write("{}\n".format(content))
+            open_file.write(f"{content}\n")
     return
 
 def process_iocs(results):
@@ -89,7 +90,7 @@ def process_iocs(results):
 
     splunk_table = []
 
-    for provided_ioc in set(provided_iocs):        
+    for provided_ioc in set(provided_iocs):
         score = score_domain(provided_ioc.lower())
 
         if score >= 120:
@@ -100,7 +101,7 @@ def process_iocs(results):
             threat_level = "medium"
         elif score >= 65:
             threat_level = "low"
-        elif score < 65:
+        else:
             threat_level = "harmless"
 
         splunk_table.append({
@@ -112,11 +113,12 @@ def process_iocs(results):
 
 def score_domain(provided_ioc):
     """Return the scores of the provided domain."""
-    score = 0
+    score = sum(
+        20
+        for suspicious_tld in suspicious["tlds"]
+        if provided_ioc.endswith(suspicious_tld)
+    )
 
-    for suspicious_tld in suspicious["tlds"]:
-        if provided_ioc.endswith(suspicious_tld):
-            score += 20
 
     try:
         res    = tld.get_tld(provided_ioc, as_object=True, fail_silently=True,
@@ -155,8 +157,8 @@ def score_domain(provided_ioc):
 if __name__ == "__main__":
     if sys.argv[1].lower() == "modules":
         suspicious, confusables = get_modules()
-        sfile = "{}/bin/phishing_catcher_suspicious.yaml".format(app_home)
-        cfile = "{}/bin/phishing_catcher_confusables.py".format(app_home)
+        sfile = f"{app_home}/bin/phishing_catcher_suspicious.yaml"
+        cfile = f"{app_home}/bin/phishing_catcher_confusables.py"
 
         write_file(suspicious, sfile)
         write_file(confusables, cfile)

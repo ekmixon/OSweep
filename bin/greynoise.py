@@ -32,12 +32,13 @@ Notes: None
 Debugger: open("/tmp/splunk_script.txt", "a").write("{}: <MSG>\n".format(<VAR>))
 """
 
+
 from collections import OrderedDict
 import os
 import sys
 
-app_home   = "{}/etc/apps/OSweep".format(os.environ['SPLUNK_HOME'])
-tp_modules = "{}/bin/_tp_modules".format(app_home)
+app_home = f"{os.environ['SPLUNK_HOME']}/etc/apps/OSweep"
+tp_modules = f"{app_home}/bin/_tp_modules"
 sys.path.insert(0, tp_modules)
 import validators
 
@@ -52,16 +53,16 @@ def get_feed():
     api_key = commons.get_apikey("greynoise")
     tags    = query_list(session)
 
-    if tags == None:
+    if tags is None:
         return
-    
+
     if api_key != None:
         session.params = {"key": api_key}
     return query_tags(tags, session)
 
 def query_list(session):
     """Return a list of tags."""
-    resp = session.get("{}/list".format(api), timeout=180)
+    resp = session.get(f"{api}/list", timeout=180)
 
     if resp.status_code == 200 and "tags" in resp.json().keys():
         return resp.json()["tags"]
@@ -72,7 +73,7 @@ def query_tags(tags, session):
     data_feed = []
 
     for tag in tags:
-        resp = session.post("{}/tag".format(api), data={"tag": tag})
+        resp = session.post(f"{api}/tag", data={"tag": tag})
 
         if resp.status_code == 200 and "records" in resp.json().keys() and \
            len(resp.json()["records"]):
@@ -92,48 +93,44 @@ def query_tags(tags, session):
 
     session.close()
 
-    if len(data_feed) == 0:
+    if not data_feed:
         return
     return data_feed
 
 def write_file(data_feed, file_path):
     """Write data to a file."""
-    if data_feed == None:
+    if data_feed is None:
         return
 
     with open(file_path, "w") as open_file:
         keys   = data_feed[0].keys()
         header = ",".join(keys)
 
-        open_file.write("{}\n".format(header))
+        open_file.write(f"{header}\n")
 
         for data in data_feed:
             data_string = "^^".join(data.values())
             data_string = data_string.replace(",", "")
             data_string = data_string.replace("^^", ",")
             data_string = data_string.replace('"', "")
-            open_file.write("{}\n".format(data_string.encode("UTF-8")))
+            open_file.write(f'{data_string.encode("UTF-8")}\n')
     return
 
 def process_iocs(results):
     """Return data formatted for Splunk from GreyNoise."""
-    if results != None:
-        provided_iocs = [y for x in results for y in x.values()]
-    else:
+    if results is None:
         provided_iocs = sys.argv[1:]
 
+    else:
+        provided_iocs = [y for x in results for y in x.values()]
     splunk_table = []
-    lookup_path  = "{}/lookups".format(app_home)
-    open_file    = open("{}/greynoise_feed.csv".format(lookup_path), "r")
-    data_feed    = open_file.read().splitlines()
-    header       = data_feed[0].split(",")
-    open_file.close()
-
-    open_file = open("{}/greynoise_scanners.csv".format(lookup_path), "r")
-    scanners  = set(open_file.read().splitlines()[1:])
-    scanners  = [x.lower() for x in scanners]
-    open_file.close()
-
+    lookup_path = f"{app_home}/lookups"
+    with open(f"{lookup_path}/greynoise_feed.csv", "r") as open_file:
+        data_feed    = open_file.read().splitlines()
+        header       = data_feed[0].split(",")
+    with open(f"{lookup_path}/greynoise_scanners.csv", "r") as open_file:
+        scanners  = set(open_file.read().splitlines()[1:])
+        scanners  = [x.lower() for x in scanners]
     for provided_ioc in set(provided_iocs):
         provided_ioc = commons.deobfuscate_string(provided_ioc)
 
@@ -160,9 +157,9 @@ def process_iocs(results):
 if __name__ == "__main__":
     if sys.argv[1].lower() == "feed":
         data_feed    = get_feed()
-        lookup_path  = "{}/lookups".format(app_home)
-        scanner_list = "{}/greynoise_scanners.csv".format(lookup_path)
-        file_path    = "{}/greynoise_feed.csv".format(lookup_path)
+        lookup_path = f"{app_home}/lookups"
+        scanner_list = f"{lookup_path}/greynoise_scanners.csv"
+        file_path = f"{lookup_path}/greynoise_feed.csv"
 
         with open(scanner_list, "w") as sfile:
             sfile.write("scanner\n")
@@ -172,7 +169,7 @@ if __name__ == "__main__":
                 scanner = data["name"].encode("UTF-8")
 
                 if scanner not in scanners:
-                    sfile.write("{}\n".format(scanner.lower()))
+                    sfile.write(f"{scanner.lower()}\n")
 
         write_file(data_feed, file_path)
         exit(0)

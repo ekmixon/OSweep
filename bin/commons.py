@@ -3,18 +3,19 @@
 Common functions
 """
 
+
 import os
 import re
 import sys
 import traceback
 
-app_home   = "{}/etc/apps/OSweep".format(os.environ['SPLUNK_HOME'])
-tp_modules = "{}/bin/_tp_modules".format(app_home)
+app_home = f"{os.environ['SPLUNK_HOME']}/etc/apps/OSweep"
+tp_modules = f"{app_home}/bin/_tp_modules"
 sys.path.insert(0, tp_modules)
 import splunk.Intersplunk as InterSplunk
 import requests
 
-config_path = "{}/etc/".format(app_home)
+config_path = f"{app_home}/etc/"
 sys.path.insert(1, config_path)
 import config
 
@@ -55,7 +56,7 @@ def get_apikey(api):
 
 def lower_keys(target):
     """Return a string or dictionary with the first character capitalized."""
-    if isinstance(target, str) or isinstance(target, unicode):
+    if isinstance(target, (str, unicode)):
         words = target.encode("UTF-8").split("_")
         return " ".join(words).lower()
 
@@ -70,7 +71,7 @@ def lower_keys(target):
 def merge_dict(one, two):
     """Merge two dictionaries."""
     merged_dict = {}
-    merged_dict.update(lower_keys(one))
+    merged_dict |= lower_keys(one)
     merged_dict.update(lower_keys(two))
     return merged_dict
 
@@ -84,7 +85,7 @@ def return_results(module):
             new_results = module.process_iocs(None)
     except:
         stack = traceback.format_exc()
-        new_results = InterSplunk.generateErrorResults("Error: " + str(stack))
+        new_results = InterSplunk.generateErrorResults(f"Error: {str(stack)}")
 
     InterSplunk.outputResults(new_results)
     return
